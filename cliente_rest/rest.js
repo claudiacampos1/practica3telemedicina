@@ -30,10 +30,6 @@
 		//xhr.responseType = 'json'; // el tipo de la respuesta que se espera es JSON
 		if(data) xhr.setRequestHeader("Content-type", "application/json;charset=UTF-8"); // el tipo de la petición es JSON
 
-		//añadir el token a las peticiones (solo en las peticiones del servidor)
-		if(url.startsWith("/api/") && token !== null){
-			xhr.setRequestHeader("Authorization", "Bearer " + token);
-		}
 		debug(">>>", method, url, data);
 		xhr.send(data); // Enviar datos
 		function end() {
