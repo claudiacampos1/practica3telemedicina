@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplicación Gestor</title>
+    <style>
+        /* --- Estilos base del cuerpo --- */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #eef2f7;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        h1 {
+            display: none; 
+        }
+
+        
+        .seccion {
+            background-color: #ffffff;
+            border: 2px solid black;
+            width: 100%;
+            max-width: 600px;
+            padding: 0;
+            margin-top: 20px;
+        }
+
+        /* --- (Aplicación Gestor) --- */
+        .seccion h2 {
+            background-color: #5d8aa8; 
+            color: black;
+            margin: 0;
+            padding: 10px;
+            text-align: center;
+            font-size: 1.8em;
+            border-bottom: 1px solid black;
+        }
+
+        
+        .seccion h3, .seccion p, .seccion div, .seccion table {
+            padding-left: 15px;
+            padding-right: 15px;
+        }
+
+        .seccion h3 {
+            text-transform: uppercase;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+            margin-top: 15px;
+        }
+
+        /* --- Formularios  --- */
+        .seccion div {
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        label {
+            width: 120px;
+            color: darkblue;
+            font-weight: normal;
+        }
+
+        input[type="text"], 
+        input[type="password"], 
+        select {
+            border: 1px solid #999;
+            padding: 3px;
+            width: 200px;
+        }
+
+        /* --- Botones --- */
+        button {
+            margin: 10px 5px 15px 15px;
+            padding: 4px 12px;
+            cursor: pointer;
+            background-color: #e1e1e1;
+            border: 1px solid #767676;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background-color: #d0d0d0;
+        }
+
+        /* --- Tablas --- */
+        table {
+            width: 95% !important;
+            margin: 10px auto;
+            border-collapse: collapse;
+            border: 1px solid #ccc;
+        }
+
+        th {
+            background-color: #eee;
+            font-size: 0.9em;
+            padding: 5px;
+        }
+
+        td {
+            padding: 5px;
+            text-align: left;
+            font-size: 0.9em;
+        }
+        .seccion{display: none;}
+        .activa{display: block;}
+
+        /* Cada fila de las reservas será de un color indicado */
+        .reserva-blanca { background-color: #ffffff; }
+        .reserva-azul   { background-color: #add8e6; }
+        .reserva-roja   { background-color: #ffcccc; }
+        .reserva-verde  { background-color: #ccffcc; }
+        .aviso-rojo {
+            background-color: #ffcccc;
+        }
+
+        .aviso-azul {
+            background-color: #add8e6;
+        }
+
+        .aviso-verde {
+            background-color: #ccffcc;
+        }
+
+        /* --- Ajuste para el botón Salir (alineado a la derecha) --- */
+        button[onclick="salir()"] {
+            float: right;
+            margin-right: 15px;
+        }
+
+        /* Separador horizontal */
+        hr {
+            border: 0;
+            border-top: 1px dotted #ccc;
+            margin: 15px 0;
+        }
+    </style>
+    
+</head>
+
+<body>
+    <h1>Aplicación Gestor</h1>
+    <div id="login" class="seccion activa">
+        <h2>Acceso</h2>
+       <div>
+        <label for="usuarioLogin">Usuario: </label>
+        <input id="usuarioLogin" type="text"/>
+        </div> 
+       <div>
+        <label for="contrasenyaLogin">Contraseña: </label>
+        <input id="contrasenyaLogin" type="password"/>
+        </div>
+       <button onclick="entrar()">Entrar</button> 
+       <button onclick="registrarse()">Registrarse</button>
+       <!--<button onclick="cambiarSeccion('datos-gestor')">Registrarse</button>-->
+    </div>
+
+    <!--Cuando el login es correcto, pasa a esta seccion-->
+    <div id="menu-principal" class="seccion">
+        <h2>Inicio</h2>
+        <p id="bienvenida"></p>
+        <button onclick="datosUsuario()"> Editar datos</button>
+        <button onclick="enviarDatosMinisterio()">Enviar datos al Ministerio</button>
+
+        <h3>Ranking de áreas</h3>
+        <table id="tabla-ranking">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Área Médica</th>
+                    <th>Reservas Totales</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+        
+        <p>Búsqueda de recursos</p>
+        <div>
+            <label for="categoriaSelect">Categoría: </label>
+            <!--<input id="categoria" type="select"/>-->
+            <select id="categoriaSelect" onchange="actualizarModelos(this.value, 'modeloSelect')"></select>
+        </div>
+        <div>
+            <label for="modeloSelect">Modelo: </label>
+            <!--<input id="modelo" type="select"/>-->
+            <select id="modeloSelect"></select>
+        </div>
+        <div>
+            <label for="ubicacionSelect">Ubicación: </label>
+           <!-- <input id="ubicacion" type="select"/>-->
+            <select id="ubicacionSelect"></select>
+        </div>
+        <div>
+            <label for="estadoSelect">Estado: </label>
+            <!--<input id="estado" type="select"/>-->
+            <select id="estadoSelect"></select>
+        </div>
+        <button onclick="buscar()"> Buscar </button>
+        <p>Recursos</p>
+        <!--Tabla de los recursos creados en el sistema-->
+        <table border ="1" width="100%" id = "tabla-recursos">
+            <thead>
+                <tr>
+                    <th>N.Serie</th>
+                    <th>Categoría</th>
+                    <th>Modelo</th>
+                    <th>Ubicación</th>
+                    <th>Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <!--aquí se verán los recursos-->
+            </tbody>
+        </table>
+        <button onclick="nuevoRecurso()"> Añadir recurso </button>
+        <!--WS AVISOS-->
+        <p><strong>Avisos</strong></p>
+        <table border="1" width="100%" id="tabla-avisos">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Origen</th>
+                    <th>Texto</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <!--salir lleva al login-->
+        <button onclick="salir()"> Salir </button> 
+    </div>
+
+    <!--Cuando un nuevo usuario quiere registrarse / editar datos de un gestor existente-->
+    <div id="datos-gestor" class="seccion">
+        <h2>Datos gestor</h2>
+        <div>
+        <label for="nombreDatos">Nombre: </label>
+        <input id="nombreDatos" type="text"/>
+        </div> 
+       <div>
+        <label for="apellidosDatos">Apellidos: </label>
+        <input id="apellidosDatos" type="text"/>
+        </div>
+        <div>
+        <label for="usuarioDatos">Usuario: </label>
+        <input id="usuarioDatos" type="text"/>
+        </div> 
+       <div>
+        <label for="contrasenyaDatos">Contraseña: </label>
+        <input id="contrasenyaDatos" type="password"/>
+        </div>
+        <button onclick="guardarDatos()">Guardar</button>
+        <button onclick="cancelar()">Cancelar</button>
+        <!--<button onclick="salir()"> Cancelar </button>-->
+    </div>
+
+    <!--Si se pulsa el botón de añadir recurso-->
+    <div id="nuevo-recurso" class="seccion">
+        <h2> RECURSO</h2>
+        <h3> Datos recurso </h3>
+        <div>
+            <label for="categoriaRecurso">Categoría: </label>
+            <select id="categoriaRecurso" onchange="actualizarModelos(this.value, 'modeloRecurso')"></select>
+        </div> 
+        <div>
+            <label>Modelo: </label>
+            <select id="modeloRecurso"></select>
+        </div>
+        <div>
+            <label for="numSerieRecurso">Núm. Serie: </label>
+            <input id="numSerieRecurso" type="text">
+        </div> 
+        <div>
+            <label>Ubicación: </label>
+            <select id="ubicacionRecurso"></select>
+        </div>
+        <div>
+            <label for="estadoRecursos">Estado: </label>
+            <select id="estadoRecurso">
+                <option value="0">Operativo</option> 
+                <option value="1">Defectuoso</option>
+                <option value="2">En mantenimiento</option>
+            </select>
+        </div>
+        <button onclick="guardarRecurso()">Guardar</button>
+
+        <hr> 
+        <div id="reservas"> 
+            <h3>Reservas</h3>
+            <table border ="1" width="100%" id = "tabla-reservas">
+                <thead>
+                    <tr>
+                        <th>Sanitario</th>
+                        <th>H. estim</th>
+                        <th>F. Peticion</th>
+                        <th>F. Inicio</th>
+                        <th>F. Fin</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>    
+        </div>
+        <hr>
+        <div id ="resenyas">
+            <h3>Reseñas</h3>
+            <table border ="1" width="100%" id = "tabla-resenyas">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Sanitario</th>
+                        <th>Valoración</th>
+                        <th>Comentario</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+        </div>
+    <button onclick="cambiarSeccion('menu-principal')">Volver al listado</button>
+    </div>
+    
+
+    <!--Siempre se carga aquí los scripts-->
+    <script src="rest.js"></script>
+    <script src="main.js"></script>
+</body>
+
+</html>
