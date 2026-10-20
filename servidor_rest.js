@@ -1,6 +1,15 @@
 var conexion = require("./conexion_mysql.js");
 var express = require("express");
 var app = express();
+
+//Importar el cliente de la supabase
+const { createClient } = require('@supabase/supabase-js');
+
+//Configurar la url y la Public Key
+const supabaseUrl = 'https://bibviujhndtwkobefeqx.supabase.co';
+const supabaseKey = 'sb_publishable_RpyJQA4xRGo0U5yxgmjX8g_U8vC5X7l';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 //para utilizar las funciones de la libreria jwt
 var jwt = require("jsonwebtoken");
 //clave que usa el servidor para firmar y verificar tokens 
