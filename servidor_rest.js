@@ -11,105 +11,15 @@ const supabaseKey = 'sb_publishable_RpyJQA4xRGo0U5yxgmjX8g_U8vC5X7l';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 //para utilizar las funciones de la libreria jwt
-var jwt = require("jsonwebtoken");
+var jwt = require("jwt-simple");
 //clave que usa el servidor para firmar y verificar tokens 
-var claveSecreta = process.env.JWT_SECRET;
-
-if(!claveSecreta){
-    throw new Error("No se ha configurado la clave JWT");
-}
-
-//verificar el token de las peticiones
-function verificarToken(req, res, next){
-    //obtener la cabecera 
-    var autorizacion = req.headers.authorization;
-    //comprobar que se ha enviado la cabecera
-    if(!autorizacion){
-        return res.status(401).json("No se ha enviado ningún token");
-    }
-    //extraer el token (es la segunda posicion de la cabecera)
-    var token = autorizacion.split(" ")[1];
-    //verificar el token
-    try{
-        var datos =jwt.verify(token, claveSecreta);
-        next();
-    }
-    catch(error){
-        res.status(403).json("Token no válido o caducado");
-    }
-}
+var claveSecreta = "miSecretoMasOscuro";
 
 //cuando alguien se conecta a /appCliente, se le manda lo que hay en la carpeta "cliente"
 app.use("/appCliente", express.static("cliente_rest"));
 app.use(express.json());
-//para indicar que servicios rest se quieren proteger
-/**
- * app.use("/api", function(req, res, next){ - para que se ejecute antes de procesar las peticiones 
- * req.path === "/gestores/login" - pq para el login no hay que tener token (se genera ahí)
- * (req.path === "/gestores" && req.method === "POST") - para que al crear un gestor nuevo tampoco requiera un token
- */
-app.use("/api", function(req, res, next){
-    if(req.path === "/gestores/login" || (req.path === "/gestores" && req.method === "POST")){
-        next();
-    }
-    else{
-        //para el resto de peticiones se verifica el token
-        verificarToken(req,res,next);
-    }
-});
 
-//Obtener todas las filas de la tabla ubicaciones
-app.get("/api/ubicaciones", function(req, res){
-    //obtiene de supabase los datos de la tabla de ubicaciones
-    supabase.from("ubicaciones").select("*").then(function(respuesta){
-        var error = respuesta.error;
-        var ubicaciones = respuesta.data;
-        
-        if(error){
-            console.log("Error al obtener ubicaciones", error);
-            res.status(500).json("Error al realizar la consulta");
-        }
-        else{
-            console.log("Ubicaciones: ", ubicaciones);
-            res.status(200).json(ubicaciones);
-        }
-    });
-});
-
-//obtener todas las filas de la tabla categorias
-app.get("/api/categorias", function(req, res){
-    supabase.from("categorias").select("*").then(function(respuesta){
-        var error = respuesta.error;
-        var categorias = respuesta.data;
-        
-        if(error){
-            console.log("Error al obtener las categorías");
-            res.status(500).json("Error al realizar la consulta");
-        }
-        else{
-            console.log("Categorías: ", categorias);
-            res.status(200).json(categorias);
-        }
-    });
-});
-
-//obtener todas las filas de la tabla modelos
-app.get("/api/modelos", function(req, res){
-    supabase.from("modelos").select("*").then(function(respuesta){
-        var error = respuesta.error;
-        var modelos = respuesta.data;
-        
-        if(error){
-            console.log("Error al obtener los modelos");
-            res.status(500).json("Error al realizar la consulta");
-        }
-        else{
-            console.log("Modelos: ", modelos);
-            res.status(200).json(modelos);
-        }
-    });
-});
-
+//servicios que no necesitan token (login y registro)
 //Login del gestor, el cliente envía en el body el usuario y la contraseña
 app.post("/api/gestores/login", function(req, res){
     //guardamos los datos que llegan desde el cliente
@@ -146,13 +56,17 @@ app.post("/api/gestores/login", function(req, res){
                  */
                 /**
                  * si el usuario y la contraseña son correctos, generar token 
-                 * jwt.sign - genera un token
+                 * contenido - objeto que se guarda en el token
                  * id:gestores[0].id - pone el id del gestor dentro del token
-                 * claveSecreta - clave con la q el servidor firma el token
-                 * {expiresIn: "2h"} - hace que el token caduque después de 2h
+                 * expira - indica cuando caducará el token
+                 * 2*60*60*1000 - para pasar 1 hora a milisegundos
+                 * jwt.encode() - crea token con el contenido y la clave secreta
                 */
-
-                var token = jwt.sign({id:gestores[0].id}, claveSecreta, {expiresIn: "2h"});
+                var contenido = {
+                    id:gestores[0].id,
+                    expira: Date.now() + 60*60*1000
+                };
+                var token = jwt.encode(contenido, claveSecreta);
                 res.status(200).json({id:gestores[0].id, token:token});
             }
         }
@@ -214,6 +128,94 @@ app.post("/api/gestores", function(req, res){
         });
     });
 });
+
+//a partir de aqui los demas con token 
+//para validar el token
+app.use("/api", function(req, res, next){
+    //obtener el token de la url
+    var token = req.query.token;
+    if (!token) { // no se ha pasado un token
+        res.status(301).json("No se ha encontrado token");
+        return;
+    }
+
+    // Decodificar el token
+    try { // capturamos el error por si el token no es correcto
+        var contenidoToken = jwt.decode(token, claveSecreta); // decodificamos el token para obtener su contenido con la misma clave que se codificó
+    } catch (error) {
+        res.status(301).json("El token es incorrecto");
+        return;
+    }
+    console.log("El contenido del token es:", contenidoToken);
+
+    // Validar el token
+    if (!contenidoToken || !contenidoToken.expira || !contenidoToken.id) { // validamos el formato del token
+        res.status(301).json("El formato del token no es adecuado")
+        return;
+    }
+
+    // Comprobar la fecha de expiración
+    if (contenidoToken.expira < Date.now()) {
+        res.status(301).json("El token ha expirado");
+        return
+    }
+    // Todo ha ido bien. con next hago que express continue con el procesado
+    next();
+    
+});
+
+//Obtener todas las filas de la tabla ubicaciones
+app.get("/api/ubicaciones", function(req, res){
+    //obtiene de supabase los datos de la tabla de ubicaciones
+    supabase.from("ubicaciones").select("*").then(function(respuesta){
+        var error = respuesta.error;
+        var ubicaciones = respuesta.data;
+        
+        if(error){
+            console.log("Error al obtener ubicaciones", error);
+            res.status(500).json("Error al realizar la consulta");
+        }
+        else{
+            console.log("Ubicaciones: ", ubicaciones);
+            res.status(200).json(ubicaciones);
+        }
+    });
+});
+
+//obtener todas las filas de la tabla categorias
+app.get("/api/categorias", function(req, res){
+    supabase.from("categorias").select("*").then(function(respuesta){
+        var error = respuesta.error;
+        var categorias = respuesta.data;
+        
+        if(error){
+            console.log("Error al obtener las categorías");
+            res.status(500).json("Error al realizar la consulta");
+        }
+        else{
+            console.log("Categorías: ", categorias);
+            res.status(200).json(categorias);
+        }
+    });
+});
+
+//obtener todas las filas de la tabla modelos
+app.get("/api/modelos", function(req, res){
+    supabase.from("modelos").select("*").then(function(respuesta){
+        var error = respuesta.error;
+        var modelos = respuesta.data;
+        
+        if(error){
+            console.log("Error al obtener los modelos");
+            res.status(500).json("Error al realizar la consulta");
+        }
+        else{
+            console.log("Modelos: ", modelos);
+            res.status(200).json(modelos);
+        }
+    });
+});
+
 
 //actualiza datos del gestor. Se pasa objeto con datos a actualizar (excepto id). login debe ser único
 app.put("/api/gestores/:id", function(req,res){
