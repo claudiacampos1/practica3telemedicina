@@ -1,4 +1,4 @@
-var conexion = require("./conexion_mysql.js");
+
 var express = require("express");
 var app = express();
 
@@ -60,9 +60,11 @@ app.use("/api", function(req, res, next){
 
 //Obtener todas las filas de la tabla ubicaciones
 app.get("/api/ubicaciones", function(req, res){
-    var sql = "SELECT * FROM ubicaciones";
-    //envia la consulta a mysql, espera la respuesta y ejecuta una funcion con el resultado
-    conexion.query(sql, function(error, ubicaciones){
+    //obtiene de supabase los datos de la tabla de ubicaciones
+    supabase.from("ubicaciones").select("*").then(function(respuesta){
+        var error = respuesta.error;
+        var ubicaciones = respuesta.data;
+        
         if(error){
             console.log("Error al obtener ubicaciones", error);
             res.status(500).json("Error al realizar la consulta");
@@ -76,8 +78,10 @@ app.get("/api/ubicaciones", function(req, res){
 
 //obtener todas las filas de la tabla categorias
 app.get("/api/categorias", function(req, res){
-    var sql = "SELECT * FROM categorias";
-    conexion.query(sql, function(error, categorias){
+    supabase.from("categorias").select("*").then(function(respuesta){
+        var error = respuesta.error;
+        var categorias = respuesta.data;
+        
         if(error){
             console.log("Error al obtener las categorías");
             res.status(500).json("Error al realizar la consulta");
@@ -91,8 +95,10 @@ app.get("/api/categorias", function(req, res){
 
 //obtener todas las filas de la tabla modelos
 app.get("/api/modelos", function(req, res){
-    var sql = "SELECT * FROM modelos";
-    conexion.query(sql, function(error, modelos){
+    supabase.from("modelos").select("*").then(function(respuesta){
+        var error = respuesta.error;
+        var modelos = respuesta.data;
+        
         if(error){
             console.log("Error al obtener los modelos");
             res.status(500).json("Error al realizar la consulta");
@@ -114,19 +120,17 @@ app.post("/api/gestores/login", function(req, res){
     
     //de la tabla de gestores hay que buscar el 
     // que coincida el usuario Y la contraseña que se pasa
-    var sql = "SELECT * FROM gestores WHERE usuario = ? AND password = ?";
-    
-    //[login, password] rellena los ? en orden 
-    //primer ? --> login, segundo ? --> password
-    //"gestores" será un array con los resultados encontrados
-    conexion.query(sql,[login, password], function(error, gestores){
+    supabase.from("gestores").select("*").eq("usuario", login).eq("password", password).then(function(respuesta){
+        var error = respuesta.error;
+        var gestores = respuesta.data;
+
         if(error){
             console.log("Error al realizar el login: ", error);
             res.status(500).json("Error al realizar la consulta");
         }
         else{
             /**
-             * si mysql no encuentra ningun gestor con ese usuario y contraseña, devuelve array vacío gestores=[]
+             * siva no encuentra ningun gestor con ese usuario y contraseña, devuelve array vacío gestores=[]
              */
             if(gestores.length===0){
                 res.status(403).json("Autenticación incorrecta");
@@ -169,9 +173,10 @@ app.post("/api/gestores", function(req, res){
         return res.status(404).json("No puede haber campos vacíos");
     }
     //comprobar que el gestor NO existe
-    var sqlBuscar = "SELECT * FROM gestores WHERE usuario = ?";
-    //si el usuario introducido es "claudia", el ? se sustituye por "claudia"
-    conexion.query(sqlBuscar, [usuario], function(error, gestores){
+    supabase.from("gestores").select("*").eq("usuario", usuario).then(function(respuesta){
+        var error = respuesta.error;
+        var gestores = respuesta.data;
+
         if(error){
             console.log("Error al comprobar el gestor", error);
             return res.status(500).json("Error al realizar la consulta");
@@ -182,10 +187,16 @@ app.post("/api/gestores", function(req, res){
         }
         //si no existe, se crea (inserta)
         //se inserta una nueva fila en la tabla de gestores, (columnas que se van a rellenar), los ? son los valores que introduciré
-        //no aparece id porque lo crea mysql 
-        var sqlInsert = "INSERT INTO gestores (nombre, apellidos, usuario, password) VALUES (?, ?, ?, ?)";
-        //lo que hay entre [] es un array con los valores para rellenar los ? en orden
-        conexion.query(sqlInsert,[nombre, apellidos, usuario, password], function(error, resultado){
+        //no aparece id porque lo crea la base de datos
+        supabase.from("gestores").insert({
+            nombre:nombre,
+            apellidos:apellidos,
+            usuario:usuario,
+            password:password
+        }).select().then(function(respuesta){
+            var error=respuesta.error;
+            var resultado = respuesta.data;
+
             if(error){
                 console.log("Error al insertar gestor: ", error);
                 res.status(500).json("Error al insertar gestor");
@@ -193,8 +204,8 @@ app.post("/api/gestores", function(req, res){
             else{
                 console.log("Gestor creado correctamente");
                 res.status(201).json({
-                    //para consultar el id que ha asignado mysql a este gestor
-                    id:resultado.insertId,
+                    //para consultar el id que ha asignado supabase a este gestor
+                    id:resultado[0].id,
                     nombre:nombre,
                     apellidos:apellidos,
                     usuario:usuario
@@ -210,14 +221,16 @@ app.put("/api/gestores/:id", function(req,res){
     ///api/gestores/3 --> req.params.id es 3
     var id = Number(req.params.id);
     //comprobar que el gestor existe
-    var sqlBuscar = "SELECT * FROM gestores WHERE id=?";
-    conexion.query(sqlBuscar, [id], function(error, gestores){
+    supabase.from("gestores").select("*").eq("id", id).then(function(respuesta){
+        var error = respuesta.error;
+        var gestores = respuesta.data;
+
         //si hay algun problema al hacer la consulta
         if(error){
             console.log("Error al buscar el gestor: ", error);
             return res.status(500).json("Error al realizar la consulta");
         }
-        //si no se encuentra ningún gestor, mysql devuleve []
+        //si no se encuentra ningún gestor, devuleve []
         if(gestores.length===0){
             return res.status(404).json("El gestor no existe");
         }
@@ -231,9 +244,11 @@ app.put("/api/gestores/:id", function(req,res){
             return res.status(404).json("No puede haber campos vacíos");
         }
         //comprobar que no exista otro gestor con ese usuario
-        // id<>? significa que el id sea distinto de el que se pasa como dato
-        var sqlUsuario = "SELECT * FROM gestores WHERE usuario =? AND id<>?";
-        conexion.query(sqlUsuario, [usuario, id], function(error, mismoUsuario){
+        // neq("id", id) significa que el id sea distinto de el que se pasa como dato
+        supabase.from("gestores").select("*").eq("usuario", usuario).neq("id", id).then(function(respuesta){
+            var error = respuesta.error;
+            var mismoUsuario = respuesta.data;
+            
             if(error){
                 console.log("Error al comprobar el usuario: ", error);
                 return res.status(500).json("Error al realizar la consulta");
@@ -243,8 +258,14 @@ app.put("/api/gestores/:id", function(req,res){
             }
             //si no hay ningun problema y no existe otro gestor con el mismo usuario, hay que actualizar los datos
             //el WHERE id=? es para indicar de qué gestor se quieren modificar los datos
-            var sqlActualizar = "UPDATE gestores SET nombre =?, apellidos =?, usuario=?, password=? WHERE id=?";
-            conexion.query(sqlActualizar, [nombre, apellidos, usuario, password, id], function(error, resultado){
+            supabase.from("gestores").update({
+                nombre:nombre,
+                apellidos:apellidos,
+                usuario:usuario,
+                password:password
+            }).eq("id", id).then(function(respuesta){
+                var error = respuesta.error;
+
                 if(error){
                     console.log("Error al actualizar los datos del gestor: ", error);
                     res.status(500).json("Error al actualizar el gestor");
@@ -262,16 +283,11 @@ app.get("/api/gestores/:id", function(req, res){
     //leer el id del gestor que se quiere consultar
     var id = Number(req.params.id);
     //buscar id en la tabla de gestores
-    var sqlGestor="SELECT * FROM gestores WHERE id=?";
-    /* otra forma de hacer la consulta (sin la contraseña pq no interesa)
-        var sqlGestor="SELECT id, nombre, apellidos, usuario WHERE id=?";
-        conexion.sql(sqlGestor, [id], .....);
-        ...
-        return res.status(200).json(gestores[0])
-        devuelve los datos SIN la contraseña pq no se ha pedido
-    */
-    //se crea una lista(gestores) con lo obtenido de la consulta 
-    conexion.query(sqlGestor, [id], function(error, gestores){
+    supabase.from("gestores").select("id, nombre, apellidos, usuario").eq("id", id).then(function(respuesta){
+        var error = respuesta.error;
+        //se crea una lista(gestores) con lo obtenido de la consulta 
+        var gestores = respuesta.data;
+    
         if(error){
             console.log("Error al buscar el gestor: ", error);
             return res.status(500).json("Error al realizar la consulta");
@@ -292,8 +308,10 @@ app.get("/api/gestores/:id", function(req, res){
 //obtiene un objeto con los datos de un sanitario (NO devolver código de acceso)
 app.get("/api/sanitarios/:id", function(req, res){
     var id=Number(req.params.id);
-    var sqlSanitario = "SELECT * FROM sanitarios WHERE id=?";
-    conexion.query(sqlSanitario, [id], function(error, sanitarios){
+    supabase.from("sanitarios").select("id, nombre, apellidos, usuario").eq("id", id).then(function(respuesta){
+        var error = respuesta.error;
+        var sanitarios = respuesta.data;
+
         if(error){
             console.log("Error al buscar el sanitario: ", error);
             return res.status(500).json("Error al realizar la consulta");
@@ -328,53 +346,46 @@ app.get("/api/recursos", function(req, res){
     var idEstado = req.query.estado;
     /**
      * se seleccionan los datos de recursos que interesan
-     * INNER JOIN relaciona la tabla recurso con la tabla modelos (en recurso no hay categoria)
+     * la consulta inicial es sin filtros
+     * modelos!inner(categorias) - relaciona recursos con sus modelos y consulta la categoria
+     * 
      * un recurso tiene un modelo y un modelo pertenece a una categoria
      * recursos.modelo = modelos.id
      * si recurso.modelo = 3, modelos.id=3, y ese modelo tiene categoria=5
      */
-    //la consulta inicial es sin filtros
-    /**
-     * si pusiese SELECT * FROM recurso, devuelve todas las columnas de recurso,
-     * pero queremos usar 2 tablas, y hay un JOIN
-     * si se pone solo *, se obtienen todas las columnas de todas las tablas que participan en la consulta
-     * por eso recurso.*, son todas las columnas de recurso
-     * ON dice a mysql cómo se relacionan las tablas que se relacionan con el INNER JOIN
-     * (el modelo de la tabla recurso = el id en la tabla modelos)
-     * WHERE 1=1 es para que los siguientes filtros se puedan añadir con AND
-     */
-    var sqlRecurso = "SELECT recurso.* FROM recurso " + "INNER JOIN modelos ON recurso.modelo = modelos.id " + "WHERE 1=1";
-    //aquí se guardan los valores que sustituirán a ?, si el usuario no pone filtros, queda vacío
-    var valores = [];
+    var consulta = supabase.from("recurso").select("*, modelos!inner(categoria)");
+        
     //filtrar por modelo si se ha enviado (si existe y no está vacío se añade el filtro)
     if(idModelo && idModelo !==""){
-        sqlRecurso += " AND recurso.modelo = ?";
-        //añade elemento al final del array "valores"
-        valores.push(idModelo);
+        consulta = consulta.eq("modelo", idModelo);
     }
     //filtrar por ubicación si se ha enviado
     if(idUbicacion && idUbicacion!==""){
-        sqlRecurso += " AND recurso.ubicacion = ?";
-        valores.push(idUbicacion);
+        consulta = consulta.eq("ubicacion", idUbicacion);
     }
     //filtrar por estado si se ha enviado
     //como el 0 es un estado válido, hay que comprobar que existe el parámetro y no está vacío
     if(idEstado!==undefined && idEstado!==""){
-        sqlRecurso += " AND recurso.estado =?";
-        valores.push(idEstado);
+        consulta = consulta.eq("estado", idEstado);
     }
     if(idCategoria && idCategoria!==""){
         //se busca en la tabla modelos pq un recurso no tiene categoría directamente
-        sqlRecurso += " AND modelos.categoria =?";
-        valores.push(idCategoria);
+        consulta = consulta.eq("modelos.categoria", idCategoria);
     }
-    //recursos será el array de filas que ha encontrado mysql
-    conexion.query(sqlRecurso, valores, function(error, recursos){
+    //ejecutar la consulta
+    consulta.then(function(respuesta){
+        var error = respuesta.error;
+        var recursos = respuesta.data;
+
         if(error){
             console.log("Error al obtener los recursos: ", error);
             return res.status(500).json("Error al realizar la consulta");
         }
         else{
+            //quitar los datos del modelo para devolver solo las columnas del recurso
+            recursos.forEach(function(recurso){
+                delete recurso.modelos;
+            });
             res.status(200).json(recursos);
         }
     });
@@ -384,19 +395,21 @@ app.get("/api/recursos", function(req, res){
 app.get("/api/recursos/:id", function(req, res){
     //leer id del recurso que se quiere obtener datos
     var id = Number(req.params.id);
-    var sql = "SELECT * FROM recurso WHERE id=?";
-    conexion.query(sql, [id], function(error, respuesta){
+    supabase.from("recurso").select("*").eq("id", id).then(function(respuesta){
+        var error = respuesta.error;
+        var recursos = respuesta.data;
+
         if(error){
             console.log("Error al obtener el recurso: ", error);
             return res.status(500).json("Error al realizar la consulta");
         }
-        if(respuesta.length===0){
+        if(recursos.length===0){
             return res.status(404).json("Recurso no encontrado");
         }
         //si se encuentra el recurso, como se está buscando por su id y este es único
         //la posicion del recurso en el array respuesta, será 0
         //devuelve todas las columnas de ese recurso (id, modelo, ubicacion, num_serie y estado)
-        return res.status(200).json(respuesta[0]);
+        return res.status(200).json(recursos[0]);
     });
 });
 
@@ -413,15 +426,21 @@ app.post("/api/recursos", function(req, res){
         return res.status(404).json("No puede haber campos vacíos");
     }
 
-    var sqlRecurso = "INSERT INTO recurso (modelo, ubicacion, num_serie, estado) VALUES (?, ?, ?, ?)";
-    //en este caso, respuesta no es un array, porque la consulta no es un SELECT, sino un INSERT
-    conexion.query(sqlRecurso, [modelo, ubicacion, num_serie, estado], function(error, respuesta){
+    supabase.from("recurso").insert({
+        modelo:modelo, 
+        ubicacion:ubicacion,
+        num_serie:num_serie,
+        estado:estado
+    }).select().then(function(respuesta){
+        var error=respuesta.error;
+        var recursos = respuesta.data;
+
         if(error){
             console.log("Error al crear el recurso: ", error);
             return res.status(500).json("Error al realizar la consulta");
         }
         return res.status(201).json({
-            id:respuesta.insertId,
+            id:recursos[0].id,
             modelo:modelo,
             ubicacion:ubicacion,
             num_serie:num_serie,
@@ -434,8 +453,10 @@ app.post("/api/recursos", function(req, res){
 app.put("/api/recursos/:id", function(req,res){
     var id = Number(req.params.id);
     //buscar el recurso que se quiere actualizar
-    var sqlBuscar = "SELECT * FROM recurso WHERE id=?";
-    conexion.query(sqlBuscar, [id], function(error, rec){
+    supabase.from("recurso").select("*").eq("id", id).then(function(respuesta){
+        var error = respuesta.error;
+        var rec = respuesta.data;
+
         if(error){
             console.log("Error al buscar el recurso: ", error);
             return res.status(500).json("Error al realizar la consulta");
@@ -453,8 +474,15 @@ app.put("/api/recursos/:id", function(req,res){
         if(!modelo || !ubicacion || !num_serie || estado===undefined){
             return res.status(404).json("No puede haber campos vacíos");
         }
-        var sqlActualizar = "UPDATE recurso SET modelo =?, ubicacion=?, num_serie=?, estado=? WHERE id=?";
-        conexion.query(sqlActualizar, [modelo, ubicacion, num_serie, estado, id], function(error, respuesta){
+        //actualizar el recurso
+        supabase.from("recurso").update({
+            modelo:modelo, 
+            ubicacion:ubicacion,
+            num_serie:num_serie,
+            estado:estado
+        }).eq("id", id).then(function(respuesta){
+            var error = respuesta.error;
+            
             if(error){
                 console.log("Error al actualizar el recurso");
                 return res.status(500).json("Error al realizar la consulta");
@@ -468,8 +496,10 @@ app.put("/api/recursos/:id", function(req,res){
 app.delete("/api/recursos/:id", function(req, res){
     var id= Number(req.params.id);
     //comprobar que existe el recurso
-    var sqlBuscar = "SELECT * FROM recurso WHERE id=?";
-    conexion.query(sqlBuscar, [id], function(error, buscado){
+    supabase.from("recurso").select("*").eq("id", id).then(function(respuesta){
+        var error = respuesta.error;
+        var buscado = respuesta.data;
+    
         if(error){
             console.log("Error al buscar el recurso: ", error);
             return res.status(500).json("Error al realizar la consulta");
@@ -478,8 +508,9 @@ app.delete("/api/recursos/:id", function(req, res){
             return res.status(404).json("El recurso no existe");
         }
         //si el recurso existe, hay que eliminarlo
-        var sqlBorrar = "DELETE FROM recurso WHERE id=?";
-        conexion.query(sqlBorrar, [id], function(error, borrado){
+        supabase.from("recurso").delete().eq("id", id).then(function(respuesta){
+            var error = respuesta.error;
+        
             if(error){
                 console.log("Error al borrar el recurso: ", error);
                 return res.status(500).json("Error al realizar la consulta");
@@ -493,8 +524,10 @@ app.delete("/api/recursos/:id", function(req, res){
 app.get("/api/recursos/:id/reservas", function(req, res){
     var id=Number(req.params.id);
     //comprobar que el recurso existe
-    var sqlBuscar = "SELECT * FROM recurso WHERE id=?";
-    conexion.query(sqlBuscar, [id], function(error, buscado){
+    supabase.from("recurso").select("*").eq("id", id).then(function(respuesta){
+        var error = respuesta.error;
+        var buscado = respuesta.data;
+    
         if(error){
             console.log("Error al buscar el  recurso: ", error);
             return res.status(500).json("Error al realizar la consulta");
@@ -504,9 +537,10 @@ app.get("/api/recursos/:id/reservas", function(req, res){
         }
         //buscar todas las reservas de ese recurso
         //se quiere comparar la columna recurso de la tabla reservas con el id de la url
-        var sqlReserva = "SELECT * FROM reservas WHERE recurso=?";
-        //el array encontradas tiene dentro todas las reservas de ese recurso
-        conexion.query(sqlReserva,[id], function(error, encontradas){
+        supabase.from("reservas").select("*").eq("recurso", id).then(function(respuesta){
+            var error = respuesta.error;
+            var encontradas = respuesta.data;
+
             if(error){
                 console.log("Error al buscar la reserva: ", error);
                 return res.status(500).json("Error al realizar la consulta");
@@ -519,8 +553,10 @@ app.get("/api/recursos/:id/reservas", function(req, res){
 //obtener todas las reseñas de un recurso
 app.get("/api/recursos/:id/resenyas", function(req, res){
     var id=Number(req.params.id);
-    var sqlBuscar = "SELECT * FROM recurso WHERE id=?";
-    conexion.query(sqlBuscar, [id], function(error, encontrado){
+    supabase.from("recurso").select("*").eq("id", id).then(function(respuesta){
+        var error = respuesta.error;
+        var encontrado = respuesta.data;
+    
         if(error){
             console.log("Error al buscar el recurso: ", error);
             return res.status(500).json("Error al realizar la consulta");
@@ -529,16 +565,19 @@ app.get("/api/recursos/:id/resenyas", function(req, res){
             return res.status(404).json("El recurso no existe");
         }
         //si el recurso existe
-        var sqlResenyas = "SELECT * FROM resenyas WHERE recurso=?";
-        conexion.query(sqlResenyas, [id], function(error, respuesta){
+        supabase.from("resenyas").select("*").eq("recurso", id).then(function(respuesta){
+            var error = respuesta.error;
+            var encontradas = respuesta.data;
+        
             if(error){
                 console.log("Error al buscar las reseñas: ", error);
                 return res.status(500).json("Error al realizar la consulta");
             }
-            return res.status(200).json(respuesta);
+            return res.status(200).json(encontradas);
         });
     });
 });
 
-//puerto por el que escucha
-app.listen(3000); 
+//puerto por el que escucha, asi si se ejecuta de manera local se usa el 3000, pero el render usara el que le asigne la plataforma
+var puerto = process.env.PORT || 3000;
+app.listen(puerto);
