@@ -26,6 +26,18 @@
 		var async = typeof callback === "function"; // es una petición asincrona?
 		if (data && typeof data !== "string") data = JSON.stringify(data); // datos en texto formato JSON
 		var xhr = new XMLHttpRequest();
+		
+		//añadir el token a las peticiones del servidor (menos al login y al registro)
+		if(url.startsWith("/api/") && url !== "/api/gestores/login" && url !== "/api/gestores" && token != null){
+		    //si en la url hay parámetros, se pone con &
+			if(url.includes("?")){
+		        url = url + "&token=" + token;
+		    }
+			//si no hay parámetros, se puede usar ?
+		    else{
+		        url = url + "?token=" + token;
+		    }
+		}
 		xhr.open(method, url, async);
 		//xhr.responseType = 'json'; // el tipo de la respuesta que se espera es JSON
 		if(data) xhr.setRequestHeader("Content-type", "application/json;charset=UTF-8"); // el tipo de la petición es JSON
